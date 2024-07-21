@@ -118,7 +118,7 @@ function init() {
   });
 
   // Add controls
-  const controls = new OrbitControls(camera, renderer.domElement);
+  // const controls = new OrbitControls(camera, renderer.domElement);
 }
 
 function createBauble(scale) {
