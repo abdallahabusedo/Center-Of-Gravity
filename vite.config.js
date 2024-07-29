@@ -1,3 +1,6 @@
+import glsl from "vite-plugin-glsl";
+import restart from "vite-plugin-restart";
+
 export default {
   root: "src/",
   publicDir: "../static/",
@@ -11,4 +14,11 @@ export default {
     emptyOutDir: true, // Empty the folder first
     sourcemap: true, // Add sourcemap
   },
+  plugins: [
+    glsl(),
+    restart(
+      ["../src/**/*", "../static/**/*"], // Watch for changes in the src/ and static/ folders
+      { delay: 1000 } // Delay the restart by 1 second
+    ),
+  ],
 };
