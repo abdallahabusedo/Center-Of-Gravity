@@ -1,10 +1,139 @@
-import * as THREE from "three";
-import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import * as lil from "lil-gui";
 import CANNON from "cannon";
+import * as lil from "lil-gui";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
+import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+const vertexShader = `
+varying vec2 vUv;
+void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
 
+const fragmentShader = `
+uniform float iTime;
+uniform vec2 iResolution;
+varying vec2 vUv;
+uniform float uTransparency;
+// Original shader code from https://www.shadertoy.com/view/WtG3RD
+
+const float cloudscale = 1.1;
+const float speed = 0.03;
+const float clouddark = 0.5;
+const float cloudlight = 0.3;
+const float cloudcover = 0.2;
+const float cloudalpha = 8.0;
+const float skytint = 0.5;
+const vec3 skycolour1 = vec3(0.2, 0.4, 0.6);
+const vec3 skycolour2 = vec3(0.4, 0.7, 1.0);
+
+const mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
+
+vec2 hash(vec2 p) {
+    p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+    return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float noise(in vec2 p) {
+    const float K1 = 0.366025404; // (sqrt(3)-1)/2;
+    const float K2 = 0.211324865; // (3-sqrt(3))/6;
+    vec2 i = floor(p + (p.x + p.y) * K1);
+    vec2 a = p - i + (i.x + i.y) * K2;
+    vec2 o = (a.x > a.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec2 b = a - o + K2;
+    vec2 c = a - 1.0 + 2.0 * K2;
+    vec3 h = max(0.5 - vec3(dot(a, a), dot(b, b), dot(c, c)), 0.0);
+    vec3 n = h * h * h * h * vec3(dot(a, hash(i + 0.0)), dot(b, hash(i + o)), dot(c, hash(i + 1.0)));
+    return dot(n, vec3(70.0));
+}
+
+float fbm(vec2 n) {
+    float total = 0.0, amplitude = 0.1;
+    for (int i = 0; i < 7; i++) {
+        total += noise(n) * amplitude;
+        n = m * n;
+        amplitude *= 0.4;
+    }
+    return total;
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 p = fragCoord.xy / iResolution.xy;
+    vec2 uv = p * vec2(iResolution.x / iResolution.y, 1.0);
+    float time = iTime * speed;
+    float q = fbm(uv * cloudscale * 0.5);
+
+    float r = 0.0;
+    uv *= cloudscale;
+    uv -= q - time;
+    float weight = 0.8;
+    for (int i = 0; i < 8; i++) {
+        r += abs(weight * noise(uv));
+        uv = m * uv + time;
+        weight *= 0.7;
+    }
+
+    float f = 0.0;
+    uv = p * vec2(iResolution.x / iResolution.y, 1.0);
+    uv *= cloudscale;
+    uv -= q - time;
+    weight = 0.7;
+    for (int i = 0; i < 8; i++) {
+        f += weight * noise(uv);
+        uv = m * uv + time;
+        weight *= 0.6;
+    }
+
+    f *= r + f;
+
+    float c = 0.0;
+    time = iTime * speed * 2.0;
+    uv = p * vec2(iResolution.x / iResolution.y, 1.0);
+    uv *= cloudscale * 2.0;
+    uv -= q - time;
+    weight = 0.4;
+    for (int i = 0; i < 7; i++) {
+        c += weight * noise(uv);
+        uv = m * uv + time;
+        weight *= 0.6;
+    }
+
+    float c1 = 0.0;
+    time = iTime * speed * 3.0;
+    uv = p * vec2(iResolution.x / iResolution.y, 1.0);
+    uv *= cloudscale * 3.0;
+    uv -= q - time;
+    weight = 0.4;
+    for (int i = 0; i < 7; i++) {
+        c1 += abs(weight * noise(uv));
+        uv = m * uv + time;
+        weight *= 0.6;
+    }
+
+    c += c1;
+
+    vec3 skycolour = mix(skycolour2, skycolour1, p.y);
+    vec3 cloudcolour = vec3(1.1, 1.1, 0.9) * clamp((clouddark + cloudlight * c), 0.0, 1.0);
+
+    f = cloudcover + cloudalpha * f * r;
+
+    vec3 result = mix(skycolour, clamp(skytint * skycolour + cloudcolour, 0.0, 1.0), clamp(f + c, 0.0, 1.0));
+
+    fragColor = vec4(result, uTransparency);
+}
+
+void main() {
+    mainImage(gl_FragColor, vUv * iResolution);
+}
+`;
+
+let time = 0;
+let material;
+let cloud;
+// initialize global variables
 let scene,
   camera,
   renderer,
@@ -13,21 +142,37 @@ let scene,
   directionalLight2,
   spotLight;
 let world;
-// Parameters
+
+// Parameters for the simulation
 const params = {
-  gravityStrength: 20,
-  dampingFactor: 0.98,
-  gravityRadius: 5,
-  repelStrength: 50,
-  numberOfBaubles: 50,
+  gravityStrength: 100,
+  dampingFactor: 0.8,
+  gravityRadius: 8,
+  repelStrength: 55,
+  numberOfBaubles: 300,
   sphereColor: "#c0a0a0",
 };
+
+// Arrays to store baubles and their corresponding Cannon.js bodies
 const baubles = [];
 const baubleBodies = [];
-const baubleMaterial = new THREE.MeshLambertMaterial({
-  color: params.sphereColor,
+
+// Create bauble geometry and material
+const baubleMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    iTime: { value: 0 },
+    iResolution: {
+      value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+    },
+    uTransparency: { value: 0.9 },
+  },
+  transparent: true,
+  vertexShader: vertexShader,
+  fragmentShader: fragmentShader,
 });
 const sphereGeometry = new THREE.SphereGeometry(1, 28, 28);
+
+// Create vectors to store positions
 const centerPosition = new THREE.Vector3(0, 0, 0);
 const pointerPosition = new THREE.Vector3(0, 0, 0);
 
@@ -38,6 +183,36 @@ animate();
 function init() {
   // Basic setup for Three.js
   scene = new THREE.Scene();
+  const cubeTextureLoader = new THREE.CubeTextureLoader();
+  const environmentMap = cubeTextureLoader.load([
+    "/Standard-Cube-Map/px.png",
+    "/Standard-Cube-Map/nx.png",
+    "/Standard-Cube-Map/py.png",
+    "/Standard-Cube-Map/ny.png",
+    "/Standard-Cube-Map/pz.png",
+    "/Standard-Cube-Map/nz.png",
+  ]);
+
+  scene.background = environmentMap;
+  scene.backgroundRotation.y = 0.5;
+
+  cloud = new THREE.Mesh(
+    new THREE.SphereGeometry(10, 32, 32),
+    new THREE.ShaderMaterial({
+      uniforms: {
+        iTime: { value: 0 },
+        iResolution: {
+          value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+        },
+        uTransparency: { value: 0.8 },
+      },
+      transparent: true,
+      vertexShader: vertexShader,
+      fragmentShader: fragmentShader,
+    })
+  );
+  scene.add(cloud);
+
   camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
@@ -80,6 +255,25 @@ function init() {
   // Add pointer
   document.addEventListener("mousemove", onMouseMove, false);
 
+  const uniforms = {
+    iTime: { value: 0 },
+    iResolution: {
+      value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+    },
+    uTransparency: { value: 1 },
+  };
+
+  material = new THREE.ShaderMaterial({
+    uniforms: uniforms,
+    vertexShader: vertexShader,
+    fragmentShader: fragmentShader,
+  });
+
+  const geometry = new THREE.PlaneGeometry(200, 100);
+  let mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(0, 0, -40);
+  scene.add(mesh);
+
   // Setup lil-gui
   const gui = new lil.GUI();
   gui.add(params, "gravityStrength", 1, 100, 1).name("Gravity Strength");
@@ -96,6 +290,8 @@ function init() {
     .onChange((value) => {
       baubleMaterial.color.set(value);
     });
+
+  const consols = new OrbitControls(camera, renderer.domElement);
 
   // Load font and create text geometry
   const loader = new FontLoader();
@@ -179,8 +375,12 @@ function onMouseMove(event) {
 
 function animate() {
   requestAnimationFrame(animate);
-
+  time += 0.01;
+  material.uniforms.iTime.value = time;
   world.step(1 / 60);
+
+  // Update cloud shader uniforms
+  cloud.material.uniforms.iTime.value = time;
 
   // Apply attractive force towards the center with damping
   baubleBodies.forEach((body, index) => {
