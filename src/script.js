@@ -32,7 +32,7 @@ const params = {
   dampingFactor: 0.98,
   gravityRadius: 10,
   repelStrength: 30,
-  numberOfBaubles: 500,
+  numberOfBaubles: 200,
   sphereColor: "#c0a0a0",
 };
 const baubles = [];
@@ -64,6 +64,10 @@ const textures = [
 
 const boundarySize = 10; // Define the size of the boundary
 const velocityFactor = 0.5; // Factor to slow down the movement
+let colorChangeSpeed = 0.001; // Speed of color change
+let hue = 0; // Initial hue value
+
+const maxSpeed = 10; // Define the maximum speed for the shapes
 
 // Initialize scene and start animation
 init();
@@ -118,7 +122,7 @@ function init() {
   const gui = new lil.GUI();
   gui.add(params, "gravityStrength", 1, 100, 1).name("Gravity Strength");
   gui.add(params, "dampingFactor", 0.9, 1, 0.01).name("Damping Factor");
-  gui.add(params, "gravityRadius", 1, 20, 1).name("Gravity Radius");
+  gui.add(params, "gravityRadius", 1, 10, 1).name("Gravity Radius");
   gui.add(params, "repelStrength", 1, 100, 1).name("Repel Strength");
   gui
     .add(params, "numberOfBaubles", 1, 1000, 1)
@@ -130,7 +134,7 @@ function init() {
   loader.load("/fonts/Soria_Soria.json", function (font) {
     const textGeometry = new TextGeometry("Abdallah  \n Abu Sedo", {
       font: font,
-      size: 2,
+      size: 4,
       depth: 0.1,
       curveSegments: 12,
       bevelEnabled: true,
@@ -141,7 +145,7 @@ function init() {
     });
     const textMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
     const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-    textMesh.position.set(-5, 0); // Adjust position as needed
+    textMesh.position.set(-10, 0, -10); // Adjust position as needed
     scene.add(textMesh);
   });
 
@@ -166,7 +170,7 @@ function createBauble(scale) {
   scene.add(bauble);
   baubles.push(bauble);
 
-  const baubleShape = new CANNON.Box(new CANNON.Vec3(scale, scale, scale)); // Adjust shape to cube
+  const baubleShape = new CANNON.Box(new CANNON.Vec3(scale, scale, 0.1)); // Adjust shape to cube
   const baubleBody = new CANNON.Body({
     mass: 1,
     position: new CANNON.Vec3(
@@ -174,6 +178,7 @@ function createBauble(scale) {
       bauble.position.y,
       bauble.position.z
     ),
+    material: new CANNON.Material({ restitution: 0.1 }), // Reduce restitution for weaker collisions
   });
   baubleBody.addShape(baubleShape);
   baubleBody.addEventListener("collide", handleCollision);
@@ -225,6 +230,12 @@ function animate() {
   requestAnimationFrame(animate);
 
   world.step(1 / 60);
+
+  // Update background color
+  hue += colorChangeSpeed;
+  if (hue > 1) hue = 0;
+  const backgroundColor = new THREE.Color(`hsl(${hue * 360}, 100%, 20%)`);
+  renderer.setClearColor(backgroundColor);
 
   // Apply attractive force towards the center with damping
   baubleBodies.forEach((body, index) => {
@@ -281,6 +292,11 @@ function animate() {
       body.position.z = Math.sign(body.position.z) * boundarySize;
       body.velocity.z *= -1;
     }
+
+    // Limit the maximum speed
+    body.velocity.x = Math.min(Math.max(body.velocity.x, -maxSpeed), maxSpeed);
+    body.velocity.y = Math.min(Math.max(body.velocity.y, -maxSpeed), maxSpeed);
+    body.velocity.z = Math.min(Math.max(body.velocity.z, -maxSpeed), maxSpeed);
 
     bauble.position.set(body.position.x, body.position.y, body.position.z);
     bauble.quaternion.set(
