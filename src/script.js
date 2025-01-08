@@ -14,10 +14,10 @@ let scene,
 let world;
 // Parameters
 const params = {
-  gravityStrength: 20,
+  gravityStrength: 100,
   dampingFactor: 0.98,
-  gravityRadius: 5,
-  repelStrength: 50,
+  gravityRadius: 10,
+  repelStrength: 30,
   numberOfBaubles: 500,
   sphereColor: "#c0a0a0",
 };
