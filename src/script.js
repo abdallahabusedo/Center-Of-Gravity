@@ -3,6 +3,20 @@ import * as lil from "lil-gui";
 import * as THREE from "three";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import image1 from "./../public/Group 20266.png";
+import image2 from "./../public/Group 20272.png";
+import image3 from "./../public/Group 20273.png";
+import image4 from "./../public/Group 20277.png";
+import image5 from "./../public/Group 20279.png";
+import image6 from "./../public/Group 20280.png";
+import image7 from "./../public/Group 20281.png";
+import image8 from "./../public/Group 20284.png";
+import image9 from "./../public/Group 20286.png";
+import image10 from "./../public/Group 20289.png";
+import image11 from "./../public/Group 20293.png";
+import image12 from "./../public/Path 12683.png";
+import image13 from "./../public/Path 12684.png";
 
 let scene,
   camera,
@@ -23,46 +37,33 @@ const params = {
 };
 const baubles = [];
 const baubleBodies = [];
-const textureLoader = new THREE.TextureLoader();
-const texture_color = textureLoader.load(
-  "/TCom_Various_AcousticFoam_512_albedo.tif"
-);
-texture_color.colorSpace = THREE.SRGBColorSpace;
-
-const texture_normal = textureLoader.load(
-  "/TCom_Various_AcousticFoam_512_normal.tif"
-);
-const texture_roughness = textureLoader.load(
-  "/TCom_Various_AcousticFoam_512_roughness.tif"
-);
-const texture_metallic = textureLoader.load(
-  "/TCom_Various_AcousticFoam_512_metallic.tif"
-);
-const texture_ao = textureLoader.load("/TCom_Various_AcousticFoam_512_ao.tif");
-const texture_height = textureLoader.load(
-  "/TCom_Various_AcousticFoam_512_height.tif"
-);
 
 const baubleMaterial = new THREE.MeshStandardMaterial({
-  map: texture_color,
-  normalMap: texture_normal,
-  roughnessMap: texture_roughness,
-  metalnessMap: texture_metallic,
-  aoMap: texture_ao,
-  displacementMap: texture_height,
-  displacementScale: 0.1,
-  displacementBias: 0,
-  normalScale: new THREE.Vector2(1, 1),
-  roughness: 0.5,
-  metalness: 0.5,
-  aoMapIntensity: 1,
-  envMapIntensity: 1,
-  refractionRatio: 0.98,
-  wireframe: false,
+  color: 0xffffff,
 });
-const sphereGeometry = new THREE.SphereGeometry(1, 28, 28);
+const planeGeometry = new THREE.PlaneGeometry(2, 2);
+const cubeGeometry = new THREE.BoxGeometry(2, 2, 0.1); // Define cube geometry
 const centerPosition = new THREE.Vector3(0, 0, 0);
 const pointerPosition = new THREE.Vector3(0, 0, 0);
+
+const textures = [
+  new THREE.TextureLoader().load(image1),
+  new THREE.TextureLoader().load(image2),
+  new THREE.TextureLoader().load(image3),
+  new THREE.TextureLoader().load(image4),
+  new THREE.TextureLoader().load(image5),
+  new THREE.TextureLoader().load(image6),
+  new THREE.TextureLoader().load(image7),
+  new THREE.TextureLoader().load(image8),
+  new THREE.TextureLoader().load(image9),
+  new THREE.TextureLoader().load(image10),
+  new THREE.TextureLoader().load(image11),
+  new THREE.TextureLoader().load(image12),
+  new THREE.TextureLoader().load(image13),
+];
+
+const boundarySize = 10; // Define the size of the boundary
+const velocityFactor = 0.5; // Factor to slow down the movement
 
 // Initialize scene and start animation
 init();
@@ -89,21 +90,21 @@ function init() {
   world.gravity.set(0, 0, 0);
 
   // Lights
-  ambientLight = new THREE.AmbientLight(0xffffff, 2);
+  ambientLight = new THREE.AmbientLight(0xffffff, 1);
   scene.add(ambientLight);
 
-  spotLight = new THREE.SpotLight(0xffffff, 10);
+  spotLight = new THREE.SpotLight(0xffffff, 1);
   spotLight.position.set(20, 20, 25);
   spotLight.castShadow = true;
   spotLight.shadow.mapSize.width = 512;
   spotLight.shadow.mapSize.height = 512;
   scene.add(spotLight);
 
-  directionalLight1 = new THREE.DirectionalLight(0xffffff, 40);
+  directionalLight1 = new THREE.DirectionalLight(0xffffff, 4);
   directionalLight1.position.set(0, 5, -4);
   scene.add(directionalLight1);
 
-  directionalLight2 = new THREE.DirectionalLight(0xffffff, 40);
+  directionalLight2 = new THREE.DirectionalLight(0xffffff, 4);
   directionalLight2.position.set(0, -15, 0);
   scene.add(directionalLight2);
 
@@ -123,20 +124,14 @@ function init() {
     .add(params, "numberOfBaubles", 1, 1000, 1)
     .name("Number of Baubles")
     .onChange(updateBaubles);
-  // gui
-  //   .addColor(params, "sphereColor")
-  //   .name("Sphere Color")
-  //   .onChange((value) => {
-  //     baubleMaterial.color.set(value);
-  //   });
 
   // Load font and create text geometry
   const loader = new FontLoader();
-  loader.load("/fonts/helvetiker_regular.typeface.json", function (font) {
-    const textGeometry = new TextGeometry("Abdallah Abu Sedo", {
+  loader.load("/fonts/Soria_Soria.json", function (font) {
+    const textGeometry = new TextGeometry("Abdallah  \n Abu Sedo", {
       font: font,
-      size: 1,
-      height: 0.2,
+      size: 2,
+      depth: 0.1,
       curveSegments: 12,
       bevelEnabled: true,
       bevelThickness: 0.1,
@@ -144,9 +139,9 @@ function init() {
       bevelOffset: 0,
       bevelSegments: 5,
     });
-    const textMaterial = new THREE.MeshLambertMaterial({ color: 0xffffa3 });
+    const textMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
     const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-    textMesh.position.set(-5, 0, 0); // Adjust position as needed
+    textMesh.position.set(-5, 0); // Adjust position as needed
     scene.add(textMesh);
   });
 
@@ -155,7 +150,13 @@ function init() {
 }
 
 function createBauble(scale) {
-  const bauble = new THREE.Mesh(sphereGeometry, baubleMaterial);
+  const texture = textures[Math.floor(Math.random() * textures.length)];
+  const baubleMaterial = new THREE.MeshStandardMaterial({
+    map: texture,
+    transparent: true,
+    side: THREE.DoubleSide,
+  });
+  const bauble = new THREE.Mesh(cubeGeometry, baubleMaterial); // Use cube geometry
   bauble.scale.set(scale, scale, scale);
   bauble.position.set(
     Math.random() * 20 - 10,
@@ -165,7 +166,7 @@ function createBauble(scale) {
   scene.add(bauble);
   baubles.push(bauble);
 
-  const baubleShape = new CANNON.Sphere(scale);
+  const baubleShape = new CANNON.Box(new CANNON.Vec3(scale, scale, scale)); // Adjust shape to cube
   const baubleBody = new CANNON.Body({
     mass: 1,
     position: new CANNON.Vec3(
@@ -175,8 +176,18 @@ function createBauble(scale) {
     ),
   });
   baubleBody.addShape(baubleShape);
+  baubleBody.addEventListener("collide", handleCollision);
   world.addBody(baubleBody);
   baubleBodies.push(baubleBody);
+}
+
+function handleCollision(event) {
+  const body = event.target;
+  const { x, y, z } = body.position;
+
+  if (Math.abs(x) > boundarySize) body.velocity.x *= -1;
+  if (Math.abs(y) > boundarySize) body.velocity.y *= -1;
+  if (Math.abs(z) > boundarySize) body.velocity.z *= -1;
 }
 
 function updateBaubles() {
@@ -230,9 +241,9 @@ function animate() {
       const attractionForce = directionToCenter.multiplyScalar(
         params.gravityStrength / (distanceToCenter * distanceToCenter)
       );
-      body.velocity.x += attractionForce.x;
-      body.velocity.y += attractionForce.y;
-      body.velocity.z += attractionForce.z;
+      body.velocity.x += attractionForce.x * velocityFactor;
+      body.velocity.y += attractionForce.y * velocityFactor;
+      body.velocity.z += attractionForce.z * velocityFactor;
     }
 
     // Apply repelling force from the pointer
@@ -247,15 +258,29 @@ function animate() {
       const repelForce = directionFromPointer.multiplyScalar(
         params.repelStrength / (distanceFromPointer * distanceFromPointer)
       );
-      body.velocity.x += repelForce.x;
-      body.velocity.y += repelForce.y;
-      body.velocity.z += repelForce.z;
+      body.velocity.x += repelForce.x * velocityFactor;
+      body.velocity.y += repelForce.y * velocityFactor;
+      body.velocity.z += repelForce.z * velocityFactor;
     }
 
     // Apply damping to reduce velocity over time
     body.velocity.x *= params.dampingFactor;
     body.velocity.y *= params.dampingFactor;
     body.velocity.z *= params.dampingFactor;
+
+    // Ensure baubles stay within the boundary
+    if (Math.abs(body.position.x) > boundarySize) {
+      body.position.x = Math.sign(body.position.x) * boundarySize;
+      body.velocity.x *= -1;
+    }
+    if (Math.abs(body.position.y) > boundarySize) {
+      body.position.y = Math.sign(body.position.y) * boundarySize;
+      body.velocity.y *= -1;
+    }
+    if (Math.abs(body.position.z) > boundarySize) {
+      body.position.z = Math.sign(body.position.z) * boundarySize;
+      body.velocity.z *= -1;
+    }
 
     bauble.position.set(body.position.x, body.position.y, body.position.z);
     bauble.quaternion.set(
