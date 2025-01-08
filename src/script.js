@@ -1,9 +1,8 @@
-import * as THREE from "three";
-import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import * as lil from "lil-gui";
 import CANNON from "cannon";
+import * as lil from "lil-gui";
+import * as THREE from "three";
+import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
+import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 
 let scene,
   camera,
@@ -24,8 +23,42 @@ const params = {
 };
 const baubles = [];
 const baubleBodies = [];
-const baubleMaterial = new THREE.MeshLambertMaterial({
-  color: params.sphereColor,
+const textureLoader = new THREE.TextureLoader();
+const texture_color = textureLoader.load(
+  "/TCom_Various_AcousticFoam_512_albedo.tif"
+);
+texture_color.colorSpace = THREE.SRGBColorSpace;
+
+const texture_normal = textureLoader.load(
+  "/TCom_Various_AcousticFoam_512_normal.tif"
+);
+const texture_roughness = textureLoader.load(
+  "/TCom_Various_AcousticFoam_512_roughness.tif"
+);
+const texture_metallic = textureLoader.load(
+  "/TCom_Various_AcousticFoam_512_metallic.tif"
+);
+const texture_ao = textureLoader.load("/TCom_Various_AcousticFoam_512_ao.tif");
+const texture_height = textureLoader.load(
+  "/TCom_Various_AcousticFoam_512_height.tif"
+);
+
+const baubleMaterial = new THREE.MeshStandardMaterial({
+  map: texture_color,
+  normalMap: texture_normal,
+  roughnessMap: texture_roughness,
+  metalnessMap: texture_metallic,
+  aoMap: texture_ao,
+  displacementMap: texture_height,
+  displacementScale: 0.1,
+  displacementBias: 0,
+  normalScale: new THREE.Vector2(1, 1),
+  roughness: 0.5,
+  metalness: 0.5,
+  aoMapIntensity: 1,
+  envMapIntensity: 1,
+  refractionRatio: 0.98,
+  wireframe: false,
 });
 const sphereGeometry = new THREE.SphereGeometry(1, 28, 28);
 const centerPosition = new THREE.Vector3(0, 0, 0);
@@ -56,21 +89,21 @@ function init() {
   world.gravity.set(0, 0, 0);
 
   // Lights
-  ambientLight = new THREE.AmbientLight(0xffffff, 1);
+  ambientLight = new THREE.AmbientLight(0xffffff, 2);
   scene.add(ambientLight);
 
-  spotLight = new THREE.SpotLight(0xffffff, 1);
+  spotLight = new THREE.SpotLight(0xffffff, 10);
   spotLight.position.set(20, 20, 25);
   spotLight.castShadow = true;
   spotLight.shadow.mapSize.width = 512;
   spotLight.shadow.mapSize.height = 512;
   scene.add(spotLight);
 
-  directionalLight1 = new THREE.DirectionalLight(0xffffff, 4);
+  directionalLight1 = new THREE.DirectionalLight(0xffffff, 40);
   directionalLight1.position.set(0, 5, -4);
   scene.add(directionalLight1);
 
-  directionalLight2 = new THREE.DirectionalLight(0xffffff, 4);
+  directionalLight2 = new THREE.DirectionalLight(0xffffff, 40);
   directionalLight2.position.set(0, -15, 0);
   scene.add(directionalLight2);
 
@@ -90,12 +123,12 @@ function init() {
     .add(params, "numberOfBaubles", 1, 1000, 1)
     .name("Number of Baubles")
     .onChange(updateBaubles);
-  gui
-    .addColor(params, "sphereColor")
-    .name("Sphere Color")
-    .onChange((value) => {
-      baubleMaterial.color.set(value);
-    });
+  // gui
+  //   .addColor(params, "sphereColor")
+  //   .name("Sphere Color")
+  //   .onChange((value) => {
+  //     baubleMaterial.color.set(value);
+  //   });
 
   // Load font and create text geometry
   const loader = new FontLoader();
