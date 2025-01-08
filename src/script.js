@@ -18,7 +18,7 @@ const params = {
   dampingFactor: 0.98,
   gravityRadius: 5,
   repelStrength: 50,
-  numberOfBaubles: 50,
+  numberOfBaubles: 500,
   sphereColor: "#c0a0a0",
 };
 const baubles = [];
