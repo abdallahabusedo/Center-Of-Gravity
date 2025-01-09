@@ -125,10 +125,7 @@ function init() {
   gui.add(params, "dampingFactor", 0.9, 1, 0.01).name("Damping Factor");
   gui.add(params, "gravityRadius", 1, 10, 1).name("Gravity Radius");
   gui.add(params, "repelStrength", 1, 100, 1).name("Repel Strength");
-  gui
-    .add(params, "numberOfBaubles", 1, 1000, 1)
-    .name("Number of Baubles")
-    .onChange(updateBaubles);
+
   gui.add(params, "toggleVar").name("Toggle animation view"); // Add the toggle button
 
   // Load font and create text geometry
