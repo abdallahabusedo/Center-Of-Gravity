@@ -34,6 +34,7 @@ const params = {
   repelStrength: 30,
   numberOfBaubles: 200,
   sphereColor: "#c0a0a0",
+  toggleVar: false, // Add the boolean variable
 };
 const baubles = [];
 const baubleBodies = [];
@@ -128,6 +129,7 @@ function init() {
     .add(params, "numberOfBaubles", 1, 1000, 1)
     .name("Number of Baubles")
     .onChange(updateBaubles);
+  gui.add(params, "toggleVar").name("Toggle animation view"); // Add the toggle button
 
   // Load font and create text geometry
   const loader = new FontLoader();
@@ -301,7 +303,11 @@ function animate() {
     );
 
     // Rotate bauble around the origin
-    bauble.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.001);
+    if (params.toggleVar) {
+      bauble.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.001);
+    } else {
+      bauble.position.applyAxisAngle(new THREE.Vector3(1, 1, 1), 1);
+    }
 
     // Rotate bauble around itself
     bauble.rotation.x += 0.001;
